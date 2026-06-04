@@ -424,12 +424,17 @@ function renderBrands(col) {
   const brandsEl = document.getElementById("brands-list");
   const countEl  = document.getElementById("brands-count");
 
+  const shapeCls = currentShape ? ["narrow","normal","wide","very-wide"].find(c =>
+    document.getElementById("shape-result").classList.contains(c)) : null;
+
   const filtered = BRANDS.filter(b => {
     if (!b[col]) return false;
     if (urceni && b[1] !== urceni && b[1] !== 'Obojí') return false;
     if (nart   && !b[NART_IDX[nart]])     return false;
     if (opatek && !b[OPATEK_IDX[opatek]]) return false;
-    return true;
+    // Zkontroluj jestli má značka alespoň jeden model pro daný tvar nohy
+    const brandModels = MODELS[b[0]] || [];
+    return brandModels.some(m => modelMatchesFilter(m, nart, opatek, shapeCls));
   }).map(b => b[0]);
 
   if (filtered.length === 0) {
