@@ -617,7 +617,7 @@ function setKategorie(kat, clickedEl) {
 }
 
 function buildKategorieFilter() {
-  if (!SHOW_STOCK || typeof STOCK === "undefined") return;
+  if (typeof STOCK === "undefined") return;
 
   // Vyloučíme příliš obecné/nesouvisející kategorie
   const EXCLUDE = new Set(["Dámská barefoot obuv", "Pánská barefoot obuv", ""]);
