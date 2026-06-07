@@ -653,7 +653,7 @@ function buildKategorieFilter() {
 
   const secEl = document.getElementById("section-kategorie");
   secEl.style.display = "";
-  if (SHOW_STOCK) secEl.open = true;  // Prodejna: rovnou otevřené; MELODY: zavřené
+  secEl.open = true;  // vždy otevřené (Prodejna i MELODY)
 }
 
 // buildKategorieFilter() je voláno po načtení STOCK (viz fetch .then výše)
