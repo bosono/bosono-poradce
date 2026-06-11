@@ -47,7 +47,7 @@
     .unit { font-size: 12px; color: #bbb; margin-top: 5px; text-align: right; }
 
     .toggle-group { display: flex; flex-wrap: wrap; gap: 8px; }
-    .toggle-group input[type="radio"] { display: none; }
+    .toggle-group input[type="radio"], .toggle-group input[type="checkbox"] { display: none; }
 
     .kat-chip {
       font-size: 12px; font-family: inherit; cursor: pointer;
@@ -238,22 +238,22 @@
   <div class="section">
     <div class="section-label">3. Výška nártu <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#ccc">(volitelné)</span></div>
     <div class="toggle-group">
-      <input type="radio" name="nart" id="nart-any" value="" checked /><label for="nart-any">Nezáleží</label>
-      <input type="radio" name="nart" id="nart-nizky" value="nizky" /><label for="nart-nizky">Nízký</label>
-      <input type="radio" name="nart" id="nart-normalni" value="normalni" /><label for="nart-normalni">Normální</label>
-      <input type="radio" name="nart" id="nart-vyssi" value="vyssi" /><label for="nart-vyssi">Vyšší</label>
-      <input type="radio" name="nart" id="nart-vysoky" value="vysoky" /><label for="nart-vysoky">Vysoký</label>
+      <input type="checkbox" name="nart" id="nart-any" value="" checked /><label for="nart-any">Nezáleží</label>
+      <input type="checkbox" name="nart" id="nart-nizky" value="nizky" /><label for="nart-nizky">Nízký</label>
+      <input type="checkbox" name="nart" id="nart-normalni" value="normalni" /><label for="nart-normalni">Normální</label>
+      <input type="checkbox" name="nart" id="nart-vyssi" value="vyssi" /><label for="nart-vyssi">Vyšší</label>
+      <input type="checkbox" name="nart" id="nart-vysoky" value="vysoky" /><label for="nart-vysoky">Vysoký</label>
     </div>
   </div>
 
   <div class="section">
     <div class="section-label">4. Typ opatku <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#ccc">(volitelné)</span></div>
     <div class="toggle-group">
-      <input type="radio" name="opatek" id="op-any" value="" checked /><label for="op-any">Nezáleží</label>
-      <input type="radio" name="opatek" id="op-bez" value="bez" /><label for="op-bez">Bez opatku</label>
-      <input type="radio" name="opatek" id="op-mekky" value="mekky" /><label for="op-mekky">Měkký</label>
-      <input type="radio" name="opatek" id="op-zpevneny" value="zpevneny" /><label for="op-zpevneny">Zpevněný</label>
-      <input type="radio" name="opatek" id="op-pevny" value="pevny" /><label for="op-pevny">Pevný</label>
+      <input type="checkbox" name="opatek" id="op-any" value="" checked /><label for="op-any">Nezáleží</label>
+      <input type="checkbox" name="opatek" id="op-bez" value="bez" /><label for="op-bez">Bez opatku</label>
+      <input type="checkbox" name="opatek" id="op-mekky" value="mekky" /><label for="op-mekky">Měkký</label>
+      <input type="checkbox" name="opatek" id="op-zpevneny" value="zpevneny" /><label for="op-zpevneny">Zpevněný</label>
+      <input type="checkbox" name="opatek" id="op-pevny" value="pevny" /><label for="op-pevny">Pevný</label>
     </div>
   </div>
 
@@ -382,9 +382,36 @@ let activeKategorie = "";
 
 function getFilters() {
   const urceni = document.querySelector("input[name='urceni']:checked").value;
-  const nart   = document.querySelector("input[name='nart']:checked").value;
-  const opatek = document.querySelector("input[name='opatek']:checked").value;
+  const nartAny = document.querySelector("input[name='nart'][value='']").checked;
+  const nart    = nartAny ? [] : [...document.querySelectorAll("input[name='nart']:checked")].map(el => el.value).filter(Boolean);
+  const opatekAny = document.querySelector("input[name='opatek'][value='']").checked;
+  const opatek    = opatekAny ? [] : [...document.querySelectorAll("input[name='opatek']:checked")].map(el => el.value).filter(Boolean);
   return { urceni, nart, opatek, kategorie: activeKategorie };
+}
+
+function onMultiCheckChange(name, changedEl) {
+  const anyEl = document.querySelector(`input[name='${name}'][value='']`);
+  if (changedEl.value === "") {
+    // Nezáleží zaškrtnuto → odškrtni ostatní
+    if (changedEl.checked) {
+      document.querySelectorAll(`input[name='${name}']`).forEach(el => {
+        if (el.value !== "") el.checked = false;
+      });
+    } else {
+      // Pokud se odškrtává Nezáleží a nic jiné není, vrať ho zpět
+      const anyOther = [...document.querySelectorAll(`input[name='${name}']`)].some(el => el.value !== "" && el.checked);
+      if (!anyOther) changedEl.checked = true;
+    }
+  } else {
+    // Konkrétní hodnota zaškrtnuta → odškrtni Nezáleží
+    if (changedEl.checked) {
+      anyEl.checked = false;
+    } else {
+      // Pokud nic není zaškrtnuto, vrať Nezáleží
+      const anyOther = [...document.querySelectorAll(`input[name='${name}']`)].some(el => el.value !== "" && el.checked);
+      if (!anyOther) anyEl.checked = true;
+    }
+  }
 }
 
 // Mapování cls → tvar nohy v datech
@@ -402,18 +429,14 @@ function modelMatchesFilter(model, nart, opatek, shapeCls, urceni, kategorie, br
   }
   // Filtr pro koho — Obojí projde vždy
   if (urceni && model.u && model.u !== 'Obojí' && model.u !== urceni) return false;
-  // Filtr nártu
-  if (nart) {
-    const label = NART_LABEL[nart];
-    if (!model.n.includes(label)) return false;
+  // Filtr nártu (pole — model musí podporovat alespoň jednu z vybraných hodnot)
+  if (nart.length > 0) {
+    if (!nart.some(n => model.n.includes(NART_LABEL[n]))) return false;
   }
-  // Filtr opatku
-  if (opatek) {
-    const fullLabel = opatek === "bez" ? "Bez opatku"
-                    : opatek === "mekky" ? "Měkký opatek"
-                    : opatek === "zpevneny" ? "Zpevněný opatek"
-                    : "Pevný opatek";
-    if (!model.o.includes(fullLabel)) return false;
+  // Filtr opatku (pole)
+  if (opatek.length > 0) {
+    const OPATEK_FULL = { bez: "Bez opatku", mekky: "Měkký opatek", zpevneny: "Zpevněný opatek", pevny: "Pevný opatek" };
+    if (!opatek.some(op => model.o.includes(OPATEK_FULL[op]))) return false;
   }
   // Filtr kategorie (typ obuvi) — z STOCK dat
   if (kategorie && brand) {
@@ -476,8 +499,8 @@ function renderBrands(col) {
   const filtered = BRANDS.filter(b => {
     if (!b[col]) return false;
     if (urceni && b[1] !== urceni && b[1] !== 'Obojí') return false;
-    if (nart   && !b[NART_IDX[nart]])     return false;
-    if (opatek && !b[OPATEK_IDX[opatek]]) return false;
+    if (nart.length > 0   && !nart.some(n => b[NART_IDX[n]]))     return false;
+    if (opatek.length > 0 && !opatek.some(op => b[OPATEK_IDX[op]])) return false;
     // Zkontroluj jestli má značka alespoň jeden model pro daný tvar nohy + kategorii
     const brandModels = MODELS[b[0]] || [];
     return brandModels.some(m => modelMatchesFilter(m, nart, opatek, shapeCls, urceni, kategorie, b[0]));
@@ -504,10 +527,10 @@ function openModal(brand) {
   document.getElementById("modal-brand").textContent = brand;
 
   let subtitle = models.length + " modelů";
-  if (nart || opatek) {
+  if (nart.length > 0 || opatek.length > 0) {
     const parts = [];
-    if (nart)   parts.push(NART_LABEL[nart] + " nárt");
-    if (opatek) parts.push(OPATEK_LABEL[opatek] + " opatek");
+    if (nart.length > 0)   parts.push(nart.map(n => NART_LABEL[n]).join("/") + " nárt");
+    if (opatek.length > 0) parts.push(opatek.map(op => OPATEK_LABEL[op]).join("/") + " opatek");
     subtitle += " · " + parts.join(", ");
   }
   document.getElementById("modal-subtitle").textContent = subtitle;
@@ -587,8 +610,8 @@ function resetAll() {
   document.getElementById("sirka").value = "";
   // document.getElementById("brand-search").value = "";
   document.querySelector("input[name='urceni'][value='']").checked = true;
-  document.querySelector("input[name='nart'][value='']").checked = true;
-  document.querySelector("input[name='opatek'][value='']").checked = true;
+  document.querySelectorAll("input[name='nart']").forEach(el => el.checked = el.value === "");
+  document.querySelectorAll("input[name='opatek']").forEach(el => el.checked = el.value === "");
   setKategorie("", null);
   currentShape = null;
   document.getElementById("shape-result").className = "shape-result empty";
@@ -598,7 +621,13 @@ function resetAll() {
   document.querySelectorAll("#ref-table tbody tr").forEach(r => r.classList.remove("highlight-row"));
 }
 
-document.querySelectorAll("input[name='urceni'], input[name='nart'], input[name='opatek']").forEach(el => {
+document.querySelectorAll("input[name='nart'], input[name='opatek']").forEach(el => {
+  el.addEventListener("change", () => {
+    onMultiCheckChange(el.name, el);
+    if (currentShape) renderBrands(currentShape.col);
+  });
+});
+document.querySelectorAll("input[name='urceni']").forEach(el => {
   el.addEventListener("change", () => {
     if (currentShape) renderBrands(currentShape.col);
   });
